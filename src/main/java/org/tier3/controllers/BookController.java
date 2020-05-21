@@ -2,102 +2,122 @@ package org.tier3.controllers;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.tier3.entities.Book;
 import org.tier3.services.BookServiceImpl;
-import org.tier3.util.CustomErrorType;
 
 @RestController
 @RequestMapping("/")
 public class BookController {
 
-    public static final Logger logger = LoggerFactory.getLogger(BookController.class);
-
     @Autowired
     BookServiceImpl bookService;
 
-    // -------------------Retrieve All Books---------------------------------------------
-    @RequestMapping(value = "/book/", method = RequestMethod.GET)
-    public ResponseEntity<List<Book>> listAllUsers() {
+    /**
+     * GET /books : Get all books.
+     *
+     * @return the ResponseEntity with status 200 (OK) and the list of books in
+     * the body, or with status 204 (NO CONTENT) if there are no books in
+     * database.
+     */
+    @GetMapping("/books")
+    public ResponseEntity<List<Book>> getAllBooks() {
         List<Book> books = bookService.findAllBooks();
         if (books.isEmpty()) {
-            return new ResponseEntity(HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         }
-        return new ResponseEntity<List<Book>>(books, HttpStatus.OK);
+        return new ResponseEntity<>(books, HttpStatus.OK);
     }
 
-    // -------------------Retrieve Single Book------------------------------------------
-    @RequestMapping(value = "/book/{id}", method = RequestMethod.GET)
-    public ResponseEntity<?> getBook(@PathVariable("id") long id) {
-        logger.info("Fetching book with id {}", id);
+    /**
+     * GET /books/:id : Get book with id.
+     *
+     * @param id the id of the book to retrieve
+     * @return the ResponseEntity with status 200 (OK) and with body the book,
+     * or with status 404 (NOT FOUND) if the book does not exist.
+     */
+    @GetMapping("/books/{id}")
+    public ResponseEntity<Book> getBook(@PathVariable("id") long id) {
         Book book = bookService.findById(id);
         if (book == null) {
-            logger.error("Book with id {} not found.", id);
-            return new ResponseEntity(new CustomErrorType("Book with id " + id
-                    + " not found"), HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        return new ResponseEntity<Book>(book, HttpStatus.OK);
+        return new ResponseEntity<>(book, HttpStatus.OK);
     }
 
-    // -------------------Create a Book-------------------------------------------
-    @RequestMapping(value = "/book/", method = RequestMethod.POST)
-    public ResponseEntity<?> createBook(@RequestBody Book book, UriComponentsBuilder ucBuilder) {
-        logger.info("Creating book : {}", book);
+    /**
+     * POST /books : Create a new book.
+     *
+     * @param book the book to create
+     * @return the ResponseEntity with status 201 (Created) and with location
+     * header the book uri, or with status 409 (Conflict) if the book already
+     * exists.
+     */
+    @PostMapping("/books")
+    public ResponseEntity<String> createBook(@RequestBody Book book, UriComponentsBuilder ucBuilder) {
 
         if (bookService.isBookExist(book)) {
-            logger.error("Unable to create. A book with title {} already exist", book.getTitle());
-            return new ResponseEntity(new CustomErrorType("Unable to create. A book with title "
-                    + book.getTitle() + " already exist."), HttpStatus.CONFLICT);
+            return new ResponseEntity(HttpStatus.CONFLICT);
         }
         bookService.saveBook(book);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setLocation(ucBuilder.path("/book/{id}").buildAndExpand(book.getId()).toUri());
-        return new ResponseEntity<String>(headers, HttpStatus.CREATED);
+        headers.setLocation(ucBuilder.path("/books/{id}").buildAndExpand(book.getId()).toUri());
+        return new ResponseEntity<>(headers, HttpStatus.CREATED);
     }
 
-//    // ------------------- Update a Book ------------------------------------------------
-    @RequestMapping(value = "/book/{id}", method = RequestMethod.PUT)
-    public ResponseEntity<?> updateBook(@PathVariable("id") long id, @RequestBody Book book) {
-        logger.info("Updating Book with id {}", id);
+    /**
+     * PUT /books:id : Update an existing book with id.
+     *
+     * @param id the id of the book to update
+     * @return the ResponseEntity with state 200 (OK) and and with location
+     * header the updated book uri, or with status 404 (Not found) if the book
+     * does not exist.
+     */
+    @PutMapping("/books/{id}")
+    public ResponseEntity<String> updateBook(@PathVariable("id") long id, @RequestBody Book book, UriComponentsBuilder ucBuilder) {
 
         Book currentBook = bookService.findById(id);
 
         if (currentBook == null) {
-            logger.error("Unable to update. Book with id {} not found.", id);
-            return new ResponseEntity(new CustomErrorType("Unable to update. Book with id " + id + " not found."),
-                    HttpStatus.NOT_FOUND);
+            return new ResponseEntity(HttpStatus.NOT_FOUND);
         }
-
+//TODO update all variables of book when entity is created
         currentBook.setTitle(book.getTitle());
 
         bookService.updateBook(currentBook);
-        return new ResponseEntity<Book>(currentBook, HttpStatus.OK);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setLocation(ucBuilder.path("/books/{id}").buildAndExpand(book.getId()).toUri());
+        return new ResponseEntity<>(headers, HttpStatus.OK);
     }
 
-    // ------------------- Delete a Book-----------------------------------------
-    @RequestMapping(value = "/book/{id}", method = RequestMethod.DELETE)
-    public ResponseEntity<?> deleteBook(@PathVariable("id") long id) {
-        logger.info("Fetching & Deleting book with id {}", id);
+    /**
+     * DELETE /books/:id : Delete book with id.
+     *
+     * @param id the id of the book to delete
+     * @return the ResponseEntity with status 200 (OK) or status 404 (not found)
+     * if book does not exist.
+     */
+    @DeleteMapping("/books/{id}")
+    public ResponseEntity<Book> deleteBook(@PathVariable("id") long id) {
 
         Book book = bookService.findById(id);
         if (book == null) {
-            logger.error("Unable to delete. Book with id {} not found.", id);
-            return new ResponseEntity(new CustomErrorType("Unable to delete. Book with id " + id + " not found."),
-                    HttpStatus.NOT_FOUND);
+            return new ResponseEntity(HttpStatus.NOT_FOUND);
         }
         bookService.deleteBookById(id);
-        return new ResponseEntity<Book>(HttpStatus.NO_CONTENT);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 }

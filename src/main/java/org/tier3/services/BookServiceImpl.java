@@ -42,12 +42,14 @@ public class BookServiceImpl implements IBookService {
 
     @Override
     public boolean isBookExist(Book book) {
+//        TODO book exists only when id is the same?
         return findById(book.getId()) != null;
 
     }
 
     @Override
     public void saveBook(Book book) {
+//        get correct ID from DB
         book.setId(counter.incrementAndGet());
         books.add(book);
     }
